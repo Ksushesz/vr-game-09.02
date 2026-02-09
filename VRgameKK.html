@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Мини-игра "Сбор объектов" - Дополнительный функционал - Рогожная К. и Ошер К., группа 09.07.13п2</title>
+    
+    <!-- Основная библиотека A-Frame -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    
+    <!-- Ассеты из A-Frame Registry -->
+    <!-- 1. Particle System (для взрывов) -->
+    <script src="https://unpkg.com/aframe-particle-system-component@1.1.x/dist/aframe-particle-system-component.min.js"></script>
+    
+    <!-- 2. Randomizer (для случайного размещения) -->
+    <script src="https://unpkg.com/aframe-randomizer-components@^3.0.1/dist/aframe-randomizer-components.min.js"></script>
+    
+    <!-- 3. Super Hands (для улучшенного взаимодействия) -->
+    <script src="https://unpkg.com/super-hands@^3.0.1/dist/super-hands.min.js"></script>
+    
+    <!-- 4. Environment (для окружения) -->
+    <script src="https://unpkg.com/aframe-environment-component@^1.3.0/dist/aframe-environment-component.min.js"></script>
+    
+    <!-- 5. Teleport Controls (для телепортации) -->
+    <script src="https://unpkg.com/aframe-teleport-controls@^0.3.0/dist/aframe-teleport-controls.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            color: white;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #4CAF50;
+            backdrop-filter: blur(5px);
+        }
+        
+        #hud h2 {
+            margin-bottom: 10px;
+            color: #4CAF50;
+        }
+        
+        #hud div {
+            margin: 5px 0;
+            font-size: 16px;
+        }
+        
+        #stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            color: white;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #2196F3;
+        }
+        
+        #stats h3 {
+            color: #2196F3;
+            margin-bottom: 10px;
+        }
+        
+        #controls-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            color: white;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #FF9800;
+        }
+        
+        .control-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .control-btn:hover {
+            background: #45a049;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1001;
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            border: 3px solid #FF5722;
+            width: 80%;
+            max-width: 500px;
+            backdrop-filter: blur(10px);
+        }
+        
+        #game-over h2 {
+            color: #FF5722;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        
+        #game-over p {
+            margin: 15px 0;
+            font-size: 18px;
+        }
+        
+        #restart-btn {
+            background: linear-gradient(45deg, #4CAF50, #2196F3);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.3s;
+        }
+        
+        #restart-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        #player-info {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        
+        .particle-info {
+            position: absolute;
+            bottom: 60px;
+            right: 20px;
+            color: #FFD700;
+            font-size: 12px;
+        }
+        
+        #debug-info {
+            position: absolute;
+            top: 200px;
+            left: 20px;
+            color: #00FF00;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- HUD интерфейс -->
+    <div id="hud">
+        <h2>🎮 VR Игра: Сбор объектов v2.0</h2>
+        <div id="score">⭐ Счёт: 0</div>
+        <div id="timer">⏱️ Время: 60</div>
+        <div id="objects-left">🎯 Осталось объектов: 15</div>
+        <div id="combo">🔥 Комбо: x1</div>
+        <div>👨‍🎓 Студенты: Рогожная и Ошер, группа 09.07.13п2</div>
+    </div>
+    
+    <!-- Статистика -->
+    <div id="stats">
+        <h3>📊 Статистика</h3>
+        <div id="collected-count">✅ Собрано: 0</div>
+        <div id="accuracy">🎯 Точность: 100%</div>
+        <div id="particles-count">✨ Частиц: 0</div>
+        <div id="sound-status">🔊 Звук: Вкл</div>
+    </div>
+    
+    <!-- Панель управления -->
+    <div id="controls-panel">
+        <h3>🎛️ Управление</h3>
+        <button class="control-btn" onclick="toggleSound()">🔊 Вкл/Выкл звук</button>
+        <button class="control-btn" onclick="toggleParticles()">✨ Вкл/Выкл частицы</button>
+        <button class="control-btn" onclick="randomizePositions()">🔄 Перемешать объекты</button>
+        <button class="control-btn" onclick="toggleDebug()">🐛 Режим отладки</button>
+        <button class="control-btn" onclick="addMoreObjects()">➕ Добавить объекты</button>
+    </div>
+    
+    <!-- Экран завершения игры -->
+    <div id="game-over">
+        <h2>🎉 Игра завершена!</h2>
+        <p id="final-score">🏆 Финальный счёт: 0</p>
+        <p id="result-message"></p>
+        <div id="game-stats">
+            <p>⏱️ Время: 0 сек</p>
+            <p>🎯 Объектов собрано: 0/15</p>
+            <p>🔥 Максимальное комбо: x1</p>
+        </div>
+        <button id="restart-btn">🔄 Играть снова</button>
+    </div>
+    
+    <!-- Отладочная информация -->
+    <div id="debug-info">
+        <h4>🐛 Отладочная информация</h4>
+        <div id="player-pos">Позиция: (0, 0, 0)</div>
+        <div id="fps">FPS: 60</div>
+        <div id="memory">Память: --</div>
+    </div>
+    
+    <!-- A-Frame сцена -->
+    <a-scene id="main-scene" 
+             stats="true" 
+             environment="preset: forest; lighting: none; shadow: false;"
+             debug="true">
+        
+        <!-- Система частиц для взрывов (Задание 1) -->
+        <a-entity id="explosion-particles" 
+                  particle-system="preset: explosion; color: #FFD700; enabled: false"
+                  position="0 -10 0">
+        </a-entity>
+        
+        <!-- Система частиц для сбора -->
+        <a-entity id="collect-particles" 
+                  particle-system="preset: default; particleCount: 100; maxAge: 1; color: #4CAF50; size: 0.1"
+                  position="0 -10 0">
+        </a-entity>
+        
+        <!-- Звуки (Задание 2) -->
+        <a-assets>
+            <audio id="collect-sound" src="https://cdn.aframe.io/360-image-gallery-boilerplate/audio/click.ogg"></audio>
+            <audio id="explosion-sound" src="https://cdn.aframe.io/audio/audio/boop.ogg"></audio>
+            <audio id="bg-music" src="https://cdn.aframe.io/basic-guide/audio/backgroundnoise.wav"></audio>
+            <audio id="teleport-sound" src="https://cdn.aframe.io/audio/audio/river.ogg"></audio>
+        </a-assets>
+        
+        <!-- Фоновый звук -->
+        <a-entity sound="src: #bg-music; autoplay: true; loop: true; volume: 0.3"></a-entity>
+        
+        <!-- Окружение из ассета -->
+        <a-entity environment="preset: forest; 
+                              seed: 5; 
+                              lighting: point; 
+                              shadow: true;
+                              lightPosition: 5 8 5;
+                              groundColor: #228B22;
+                              ground: hills;
+                              grid: none">
+        </a-entity>
+        
+        <!-- Камера игрока с телепортацией -->
+        <a-entity id="player" 
+                  position="0 1.6 5"
+                  movement-controls="speed: 0.15"
+                  wasd-controls="enabled: true"
+                  teleport-controls="cameraRig: #player; teleportOrigin: #camera; button: trigger; 
+                                   curveShootingSpeed: 15; landingMaxAngle: 60">
+            <a-camera id="camera" look-controls="enabled: true">
+                <a-cursor></a-cursor>
+            </a-camera>
+        </a-entity>
+        
+        <!-- Объекты для сбора (основные) -->
+        <a-entity id="collectibles-container">
+            <!-- Объекты будут генерироваться случайно -->
+        </a-entity>
+        
+        <!-- Движущиеся объекты (Задание 3) -->
+        <a-entity id="moving-objects-container">
+            <!-- Движущиеся объекты будут добавлены через JS -->
+        </a-entity>
+        
+        <!-- Декоративные объекты -->
+        <a-entity id="decorations-container">
+            <!-- Декорации будут добавлены через JS -->
+        </a-entity>
+        
+        <!-- Текст счёта в сцене -->
+        <a-text id="score-text" value="Счёт: 0" 
+                position="0 8 -10" 
+                align="center" 
+                color="#FFFFFF" 
+                width="15"
+                font="https://cdn.aframe.io/fonts/Roboto-msdf.json">
+        </a-text>
+        
+        <!-- Текст таймера в сцене -->
+        <a-text id="timer-text" value="Время: 60" 
+                position="0 7 -10" 
+                align="center" 
+                color="#FF9800" 
+                width="10">
+        </a-text>
+        
+        <!-- Частицы комбо -->
+        <a-entity id="combo-particles" 
+                  particle-system="preset: default; particleCount: 50; color: #FF5722; size: 0.2"
+                  position="0 -10 0">
+        </a-entity>
+        
+        <!-- Освещение -->
+        <a-light type="ambient" color="#FFFFFF" intensity="0.6"></a-light>
+        <a-light type="directional" color="#FFFFFF" intensity="0.8" position="-5 10 5" cast-shadow="true"></a-light>
+        <a-light type="point" color="#FFD700" intensity="0.5" position="0 5 0" distance="20"></a-light>
+        
+        <!-- Супер руки для взаимодействия -->
+        <a-entity id="left-hand" 
+                  hand-controls="hand: left" 
+                  super-hands="colliderEvent: collision; 
+                              colliderEventProperty: els; 
+                              colliderEndEvent: collisionend; 
+                              colliderEndEventProperty: els">
+        </a-entity>
+        
+        <a-entity id="right-hand" 
+                  hand-controls="hand: right" 
+                  super-hands="colliderEvent: collision; 
+                              colliderEventProperty: els; 
+                              colliderEndEvent: collisionend; 
+                              colliderEndEventProperty: els">
+        </a-entity>
+        
+    </a-scene>
+    
+    <script>
+        // =============================================
+        // КОНФИГУРАЦИЯ ИГРЫ
+        // =============================================
+        const CONFIG = {
+            initialObjects: 15,
+            totalTime: 60,
+            scorePerObject: 10,
+            comboMultiplier: 1.5,
+            movingObjectsCount: 5,
+            particlesEnabled: true,
+            soundEnabled: true,
+            debugMode: false
+        };
+        
+        // =============================================
+        // ПЕРЕМЕННЫЕ ИГРЫ
+        // =============================================
+        let score = 0;
+        let timeLeft = CONFIG.totalTime;
+        let gameActive = true;
+        let collectedObjects = 0;
+        let totalObjects = CONFIG.initialObjects;
+        let timerInterval;
+        let comboCount = 0;
+        let comboMultiplier = 1;
+        let lastCollectTime = 0;
+        let particlesCount = 0;
+        let movingObjects = [];
+        
+        // =============================================
+        // ЭЛЕМЕНТЫ DOM
+        // =============================================
+        const scoreElement = document.getElementById('score');
+        const timerElement = document.getElementById('timer');
+        const objectsLeftElement = document.getElementById('objects-left');
+        const gameOverElement = document.getElementById('game-over');
+        const finalScoreElement = document.getElementById('final-score');
+        const resultMessageElement = document.getElementById('result-message');
+        const restartButton = document.getElementById('restart-btn');
+        const scoreText = document.querySelector('#score-text');
+        const timerText = document.querySelector('#timer-text');
+        const comboElement = document.getElementById('combo');
+        const collectedCountElement = document.getElementById('collected-count');
+        const particlesCountElement = document.getElementById('particles-count');
+        const debugInfo = document.getElementById('debug-info');
+
+        function initGame() {
+            console.log('🎮 Инициализация игры...');
+            
+            // Сброс переменных
+            score = 0;
+            timeLeft = CONFIG.totalTime;
+            gameActive = true;
+            collectedObjects = 0;
+            totalObjects = CONFIG.initialObjects;
+            comboCount = 0;
+            comboMultiplier = 1;
+            particlesCount = 0;
+            
+            // Очистка сцены
+            clearScene();
+            
+            // Создание объектов
+            createCollectibles();
+            createMovingObjects();
+            createDecorations();
+            
+            // Обновление интерфейса
+            updateHUD();
+            
+            // Скрытие экрана завершения
+            gameOverElement.style.display = 'none';
+            
+            // Запуск таймера
+            startTimer();
+            
+            // Воспроизведение фоновой музыки
+            playBackgroundMusic();
+            
+            console.log('✅ Игра инициализирована');
+        }
+        
+
+        function spawnObjects(count) {
+            console.log(`🎲 Генерация ${count} случайных позиций...`);
+            const positions = [];
+            
+            for (let i = 0; i < count; i++) {
+                const x = (Math.random() * 30) - 15; // от -15 до 15
+                const z = (Math.random() * 30) - 15;
+                const y = Math.random() * 3 + 1;     // от 1 до 4
+                
+                positions.push({x, y, z});
+            }
+            
+            return positions;
+        }
+        
+        function createCollectibles() {
+            const container = document.querySelector('#collectibles-container');
+            const positions = spawnObjects(totalObjects);
+            
+            positions.forEach((pos, index) => {
+                // Случайный тип объекта
+                const types = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'octahedron'];
+                const type = types[Math.floor(Math.random() * types.length)];
+                
+                // Случайный цвет
+                const colors = ['#FF5722', '#4CAF50', '#2196F3', '#9C27B0', '#FF9800', '#00BCD4'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                // Создание объекта
+                let obj;
+                switch(type) {
+                    case 'box':
+                        obj = document.createElement('a-box');
+                        obj.setAttribute('width', '0.8');
+                        obj.setAttribute('height', '0.8');
+                        obj.setAttribute('depth', '0.8');
+                        break;
+                    case 'sphere':
+                        obj = document.createElement('a-sphere');
+                        obj.setAttribute('radius', '0.6');
+                        break;
+                    case 'cylinder':
+                        obj = document.createElement('a-cylinder');
+                        obj.setAttribute('radius', '0.4');
+                        obj.setAttribute('height', '1.2');
+                        break;
+                    case 'cone':
+                        obj = document.createElement('a-cone');
+                        obj.setAttribute('radius-bottom', '0.5');
+                        obj.setAttribute('height', '1.5');
+                        break;
+                    case 'torus':
+                        obj = document.createElement('a-torus');
+                        obj.setAttribute('radius', '0.5');
+                        obj.setAttribute('radius-tubular', '0.1');
+                        break;
+                    case 'octahedron':
+                        obj = document.createElement('a-octahedron');
+                        obj.setAttribute('radius', '0.6');
+                        break;
+                }
+                
+                // Установка атрибутов
+                obj.setAttribute('id', `collectible-${index}`);
+                obj.setAttribute('class', 'collectible');
+                obj.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
+                obj.setAttribute('color', color);
+                obj.setAttribute('shadow', 'receive: false; cast: true');
+                
+                // Анимация вращения
+                obj.setAttribute('animation', {
+                    property: 'rotation',
+                    to: `0 ${360 + Math.random() * 360} ${Math.random() * 360}`,
+                    dur: 3000 + Math.random() * 3000,
+                    loop: true,
+                    easing: 'linear'
+                });
+                
+                // Анимация плавания
+                if (Math.random() > 0.5) {
+                    obj.setAttribute('animation__float', {
+                        property: 'position.y',
+                        to: pos.y + 1,
+                        dir: 'alternate',
+                        dur: 2000 + Math.random() * 2000,
+                        loop: true,
+                        easing: 'easeInOutSine'
+                    });
+                }
+                
+                // Добавление компонента для сбора
+                obj.setAttribute('collectible-component', '');
+                
+                // Добавление в контейнер
+                container.appendChild(obj);
+            });
+            
+            console.log(`✅ Создано ${totalObjects} объектов для сбора`);
+        }
+        
+        // =============================================
+        // ЗАДАНИЕ 3: ДВИЖУЩИЕСЯ ОБЪЕКТЫ
+        // =============================================
+        function createMovingObjects() {
+            const container = document.querySelector('#moving-objects-container');
+            movingObjects = [];
+            
+            for (let i = 0; i < CONFIG.movingObjectsCount; i++) {
+                const obj = document.createElement('a-sphere');
+                const startX = (Math.random() * 20) - 10;
+                const startZ = (Math.random() * 20) - 10;
+                const endX = (Math.random() * 20) - 10;
+                const endZ = (Math.random() * 20) - 10;
+                
+                obj.setAttribute('id', `moving-obj-${i}`);
+                obj.setAttribute('radius', '0.4');
+                obj.setAttribute('color', '#FF0000');
+                obj.setAttribute('position', `${startX} 2 ${startZ}`);
+                
+                // Сложная анимация движения
+                obj.setAttribute('animation', {
+                    property: 'position',
+                    to: `${endX} 2 ${endZ}`,
+                    dur: 3000 + Math.random() * 3000,
+                    loop: true,
+                    dir: 'alternate',
+                    easing: 'easeInOutCubic'
+                });
+                
+                // Вращение
+                obj.setAttribute('animation__rotation', {
+                    property: 'rotation',
+                    to: '360 360 360',
+                    dur: 5000,
+                    loop: true,
+                    easing: 'linear'
+                });
+                
+                // Мерцание
+                obj.setAttribute('animation__opacity', {
+                    property: 'material.opacity',
+                    to: '0.5',
+                    dir: 'alternate',
+                    dur: 1000,
+                    loop: true,
+                    easing: 'easeInOutSine'
+                });
+                
+                // Добавление в массив и на сцену
+                movingObjects.push(obj);
+                container.appendChild(obj);
+            }
+            
+            console.log(`✅ Создано ${CONFIG.movingObjectsCount} движущихся объектов`);
+        }
+        
+        // =============================================
+        // ЗАДАНИЕ 1: СИСТЕМА ЧАСТИЦ
+        // =============================================
+        function createParticleEffect(position, color = '#FFD700', type = 'collect') {
+            if (!CONFIG.particlesEnabled) return;
+            
+            particlesCount++;
+            updateParticlesCount();
+            
+            const particleSystem = document.querySelector(`#${type}-particles`);
+            
+            // Временное перемещение системы частиц к нужной позиции
+            particleSystem.setAttribute('position', position);
+            
+            // Активация системы частиц
+            particleSystem.setAttribute('particle-system', 'enabled', true);
+            
+            // Автоматическое отключение через 1 секунду
+            setTimeout(() => {
+                particleSystem.setAttribute('particle-system', 'enabled', false);
+                particleSystem.setAttribute('position', '0 -10 0');
+            }, 1000);
+            
+            console.log(`✨ Создан эффект частиц в позиции ${JSON.stringify(position)}`);
+        }
+        
+        function toggleParticles() {
+            CONFIG.particlesEnabled = !CONFIG.particlesEnabled;
+            const status = CONFIG.particlesEnabled ? 'Включены' : 'Выключены';
+            alert(`Система частиц: ${status}`);
+            console.log(`✨ Частицы: ${status}`);
+        }
+        
+        // =============================================
+        // ЗАДАНИЕ 2: ЗВУКОВЫЕ ЭФФЕКТЫ
+        // =============================================
+        function playCollectSound() {
+            if (!CONFIG.soundEnabled) return;
+            
+            try {
+                const sound = document.querySelector('#collect-sound');
+                sound.components.sound.playSound();
+                console.log('🔊 Воспроизведён звук сбора');
+            } catch (error) {
+                console.warn('⚠️ Не удалось воспроизвести звук:', error);
+            }
+        }
+        
+        function playExplosionSound() {
+            if (!CONFIG.soundEnabled) return;
+            
+            try {
+                const sound = document.querySelector('#explosion-sound');
+                sound.components.sound.playSound();
+                console.log('💥 Воспроизведён звук взрыва');
+            } catch (error) {
+                console.warn('⚠️ Не удалось воспроизвести звук взрыва:', error);
+            }
+        }
+        
+        function playBackgroundMusic() {
+            if (!CONFIG.soundEnabled) return;
+            
+            try {
+                const sound = document.querySelector('[sound]');
+                if (sound) {
+                    sound.components.sound.playSound();
+                    console.log('🎵 Фоновая музыка включена');
+                }
+            } catch (error) {
+                console.warn('⚠️ Не удалось включить фоновую музыку:', error);
+            }
+        }
+        
+        function toggleSound() {
+            CONFIG.soundEnabled = !CONFIG.soundEnabled;
+            const status = CONFIG.soundEnabled ? 'Включен' : 'Выключен';
+            document.getElementById('sound-status').textContent = `🔊 Звук: ${status}`;
+            
+            if (CONFIG.soundEnabled) {
+                playBackgroundMusic();
+            } else {
+                // Остановка всех звуков
+                document.querySelectorAll('[sound]').forEach(sound => {
+                    sound.components.sound.stopSound();
+                });
+            }
+            
+            console.log(`🔊 Звук: ${status}`);
+        }
+        
+        // =============================================
+        // КОМПОНЕНТ ДЛЯ СБОРА ОБЪЕКТОВ
+        // =============================================
+        AFRAME.registerComponent('collectible-component', {
+            init: function() {
+                const el = this.el;
+                const originalColor = el.getAttribute('color');
+                let isCollected = false;
+                
+                // Обработчик клика
+                el.addEventListener('click', () => {
+                    if (!gameActive || isCollected) return;
+                    
+                    collectObject(el);
+                });
+                
+                // Обработчик столкновения (для VR контроллеров)
+                el.addEventListener('collision', (event) => {
+                    if (!gameActive || isCollected) return;
+                    
+                    // Проверяем, что столкновение с рукой игрока
+                    if (event.detail.body.el.id.includes('hand')) {
+                        collectObject(el);
+                    }
+                });
+            }
+        });
+        
+        function collectObject(obj) {
+            if (!gameActive) return;
+            
+            const position = obj.getAttribute('position');
+            
+            // Увеличение счёта с учётом комбо
+            const currentTime = Date.now();
+            if (currentTime - lastCollectTime < 2000) { // 2 секунды для комбо
+                comboCount++;
+                comboMultiplier = 1 + (comboCount * 0.1);
+            } else {
+                comboCount = 0;
+                comboMultiplier = 1;
+            }
+            
+            lastCollectTime = currentTime;
+            
+            const points = Math.floor(CONFIG.scorePerObject * comboMultiplier);
+            score += points;
+            collectedObjects++;
+            
+            // ЗАДАНИЕ 1: Эффект частиц
+            createParticleEffect(position);
+            
+            // ЗАДАНИЕ 2: Звуковой эффект
+            playCollectSound();
+            
+            // Дополнительный звук при комбо
+            if (comboMultiplier > 1.2) {
+                playExplosionSound();
+                createParticleEffect(position, '#FF5722', 'combo');
+            }
+            
+            // Скрытие объекта
+            obj.setAttribute('visible', 'false');
+            
+            // Обновление интерфейса
+            updateHUD();
+            
+            // Проверка на победу
+            if (collectedObjects >= totalObjects) {
+                setTimeout(() => {
+                    endGame(true);
+                }, 500);
+            }
+            
+            console.log(`✅ Объект собран! +${points} очков (x${comboMultiplier.toFixed(1)})`);
+        }
+        
+        // =============================================
+        // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+        // =============================================
+        function clearScene() {
+            const containers = [
+                '#collectibles-container',
+                '#moving-objects-container',
+                '#decorations-container'
+            ];
+            
+            containers.forEach(selector => {
+                const container = document.querySelector(selector);
+                if (container) {
+                    while (container.firstChild) {
+                        container.removeChild(container.firstChild);
+                    }
+                }
+            });
+            
+            console.log('🧹 Сцена очищена');
+        }
+        
+        function createDecorations() {
+            const container = document.querySelector('#decorations-container');
+            
+            // Создание нескольких декоративных объектов
+            for (let i = 0; i < 10; i++) {
+                const x = (Math.random() * 40) - 20;
+                const z = (Math.random() * 40) - 20;
+                
+                const tree = document.createElement('a-cone');
+                tree.setAttribute('position', `${x} 0 ${z}`);
+                tree.setAttribute('radius-bottom', '0.5');
+                tree.setAttribute('height', '3');
+                tree.setAttribute('color', '#2E7D32');
+                tree.setAttribute('shadow', 'receive: true; cast: true');
+                
+                container.appendChild(tree);
+            }
+            
+            console.log('🌳 Созданы декоративные объекты');
+        }
+        
+        function startTimer() {
+            clearInterval(timerInterval);
+            
+            timerInterval = setInterval(() => {
+                if (!gameActive) return;
+                
+                timeLeft--;
+                updateTimerDisplay();
+                
+                if (timeLeft <= 0) {
+                    endGame(false);
+                }
+            }, 1000);
+            
+            console.log('⏱️ Таймер запущен');
+        }
+        
+        function updateHUD() {
+            scoreElement.textContent = `⭐ Счёт: ${score}`;
+            objectsLeftElement.textContent = `🎯 Осталось объектов: ${totalObjects - collectedObjects}`;
+            comboElement.textContent = `🔥 Комбо: x${comboMultiplier.toFixed(1)}`;
+            collectedCountElement.textContent = `✅ Собрано: ${collectedObjects}`;
+            
+            // Обновление 3D текста в сцене
+            scoreText.setAttribute('value', `Счёт: ${score}`);
+            
+            // Обновление точности
+            const accuracy = totalObjects > 0 ? Math.round((collectedObjects / totalObjects) * 100) : 100;
+            document.getElementById('accuracy').textContent = `🎯 Точность: ${accuracy}%`;
+        }
+        
+        function updateTimerDisplay() {
+            timerElement.textContent = `⏱️ Время: ${timeLeft}`;
+            timerText.setAttribute('value', `Время: ${timeLeft}`);
+        }
+        
+        function updateParticlesCount() {
+            particlesCountElement.textContent = `✨ Частиц: ${particlesCount}`;
+        }
+        
+        function randomizePositions() {
+            if (!gameActive) return;
+            
+            const collectibles = document.querySelectorAll('.collectible');
+            const positions = spawnObjects(collectibles.length);
+            
+            collectibles.forEach((obj, index) => {
+                if (obj.getAttribute('visible') === 'false') return;
+                
+                const pos = positions[index];
+                obj.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
+                
+                // Обновление анимации плавания
+                const floatAnim = obj.getAttribute('animation__float');
+                if (floatAnim) {
+                    obj.setAttribute('animation__float', {
+                        ...floatAnim,
+                        to: pos.y + 1
+                    });
+                }
+            });
+            
+            console.log('🔄 Позиции объектов перемешаны');
+            alert('Позиции объектов были случайным образом изменены!');
+        }
+        
+        function addMoreObjects() {
+            if (!gameActive) return;
+            
+            const newCount = 5;
+            const container = document.querySelector('#collectibles-container');
+            const positions = spawnObjects(newCount);
+            
+            positions.forEach((pos, index) => {
+                const obj = document.createElement('a-box');
+                obj.setAttribute('id', `extra-collectible-${totalObjects + index}`);
+                obj.setAttribute('class', 'collectible');
+                obj.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
+                obj.setAttribute('width', '0.6');
+                obj.setAttribute('height', '0.6');
+                obj.setAttribute('depth', '0.6');
+                obj.setAttribute('color', '#00BCD4');
+                obj.setAttribute('collectible-component', '');
+                
+                // Анимация
+                obj.setAttribute('animation', {
+                    property: 'rotation',
+                    to: `0 ${360} 0`,
+                    dur: 2000,
+                    loop: true,
+                    easing: 'linear'
+                });
+                
+                container.appendChild(obj);
+            });
+            
+            totalObjects += newCount;
+            updateHUD();
+            
+            console.log(`➕ Добавлено ${newCount} новых объектов`);
+            alert(`Добавлено ${newCount} новых объектов для сбора!`);
+        }
+        
+        function toggleDebug() {
+            CONFIG.debugMode = !CONFIG.debugMode;
+            debugInfo.style.display = CONFIG.debugMode ? 'block' : 'none';
+            
+            console.log(`🐛 Режим отладки: ${CONFIG.debugMode ? 'Включен' : 'Выключен'}`);
+        }
+        
+        function updateDebugInfo() {
+            if (!CONFIG.debugMode) return;
+            
+            const player = document.querySelector('#player');
+            if (player) {
+                const pos = player.getAttribute('position');
+                document.getElementById('player-pos').textContent = 
+                    `Позиция: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`;
+            }
+        }
+        
+        // =============================================
+        // ЗАВЕРШЕНИЕ ИГРЫ
+        // =============================================
+        function endGame(isWin) {
+            gameActive = false;
+            clearInterval(timerInterval);
+            
+            // Большой взрыв при завершении
+            const playerPos = document.querySelector('#player').getAttribute('position');
+            createParticleEffect(playerPos, '#FF5722', 'explosion');
+            playExplosionSound();
+            
+            // Обновление статистики
+            const accuracy = Math.round((collectedObjects / totalObjects) * 100);
+            const gameStats = `
+                <p>⏱️ Время: ${CONFIG.totalTime - timeLeft} сек</p>
+                <p>🎯 Объектов собрано: ${collectedObjects}/${totalObjects}</p>
+                <p>🎯 Точность: ${accuracy}%</p>
+                <p>🔥 Максимальное комбо: x${comboMultiplier.toFixed(1)}</p>
+                <p>✨ Эффектов частиц: ${particlesCount}</p>
+            `;
+            
+            document.getElementById('game-stats').innerHTML = gameStats;
+            
+            // Сообщение о результате
+            finalScoreElement.textContent = `🏆 Финальный счёт: ${score}`;
+            
+            if (isWin) {
+                resultMessageElement.textContent = '🎉 Поздравляем! Вы собрали все объекты!';
+                resultMessageElement.style.color = '#4CAF50';
+            } else {
+                resultMessageElement.textContent = '⏰ Время вышло! Попробуйте ещё раз.';
+                resultMessageElement.style.color = '#FF5722';
+            }
+            
+            // Показ экрана завершения
+            gameOverElement.style.display = 'block';
+            
+            console.log(`🎮 Игра завершена. ${isWin ? 'Победа!' : 'Поражение.'} Счёт: ${score}`);
+        }
+        
+        // =============================================
+        // ОБРАБОТЧИКИ СОБЫТИЙ
+        // =============================================
+        restartButton.addEventListener('click', initGame);
+        
+        // Обновление отладочной информации
+        setInterval(updateDebugInfo, 100);
+        
+        // =============================================
+        // ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ
+        // =============================================
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Загрузка игры...');
+            console.log('👨‍🎓 Разработчик: Рогожная и Ошер., группа 09.07.13п2');
+            console.log('🎯 Цель: Собрать все объекты за ограниченное время');
+            console.log('🎮 Управление: WASD - перемещение, мышь - вращение, клик - сбор');
+            console.log('✨ Особенности: Частицы, звуки, движущиеся объекты, случайные позиции');
+            
+            // Инициализация игры
+            initGame();
+            
+            // Информация в консоль
+            setTimeout(() => {
+                console.log('✅ Игра успешно загружена и готова к игре!');
+                console.log('📊 Конфигурация игры:', CONFIG);
+            }, 1000);
+        });
+        
+    </script>
+</body>
+</html>

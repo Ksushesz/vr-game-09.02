@@ -1,0 +1,29 @@
+{
+  "name": "vr-collect-game-enhanced",
+  "version": "2.0.0",
+  "description": "VR мини-игра 'Сбор объектов' с дополнительным функционалом - практическая работа №3",
+  "main": "VRgameKK.html",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx live-server ."
+  },
+  "keywords": [
+    "vr",
+    "aframe",
+    "game",
+    "education",
+    "threejs",
+    "particles",
+    "audio",
+    "animation"
+  ],
+  "author": "Рогожная и Ошер, группа 09.07.13п2",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ksushesz/vr-game-09.02"
+  },
+  "homepage": " https://ksushesz.github.io/vr-game-09.02/"
+}
